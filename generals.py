@@ -122,7 +122,7 @@ class General:
 
 	def init_round(self, primary, quorum):
 		self.round = {"pending_votes": len(quorum), "attack": 0, "retreat": 0, "primary": primary}
-		self.round[self.order] += 1
+		self.round[self.get_vote()] += 1
 		self.round['pending_votes'] -= 1
 
 	def close(self):
