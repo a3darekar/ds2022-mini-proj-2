@@ -66,12 +66,15 @@ class Coordinator(rpyc.Service):
 					if general.status == "primary":
 						primary_general = general
 					quorum.append(general.get_address())
-				if verbose:
-					print(quorum)
-					print("primary: ", primary_general)
 				# Elect Primary if not present.
 				if not primary_general:
 					generals[0].status = "primary"
+					primary_general = generals[0]
+
+				if verbose:
+					print("quorum participants: ", quorum)
+					print("primary: ", primary_general)
+
 				# Broadcast the Order to generals (from Primary).
 				primary_general.send_order(quorum, order)
 				# Genrals recieve Orders and prepare for quorum.
@@ -83,7 +86,8 @@ class Coordinator(rpyc.Service):
 				for general in generals:
 					print(general)
 
-				print(primary_general.decisions)
+				if verbose:
+					print("Majorities observed:", primary_general.decisions)
 				primary_general.decisions = []
 				# sleep call just so all communication is carried out and outcome is reported back before allowing next command to be given
 			else:
@@ -134,6 +138,9 @@ class Coordinator(rpyc.Service):
 								general_to_remove = general
 						if general_to_remove:
 							generals.remove(general_to_remove)
+							if general_to_remove.status == "primary":
+								generals[0].status = "primary"
+								primary_general = generals[0]
 						for general in generals:
 							print(general.get_state())
 					else:
