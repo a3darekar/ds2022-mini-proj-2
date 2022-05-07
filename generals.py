@@ -158,10 +158,14 @@ class General:
 						if self.pending_majority():
 							self.save_vote(payload)
 						if self.round['pending_votes'] == 0:
-							if self.round["attack"] > self.round['retreat']:
+							if self.verbose:
+								print(self.name, self.round, self.round["attack"] > self.round['retreat'] * 3, self.round["retreat"] > self.round['attack'] * 3)
+							if self.round["attack"] > self.round['retreat'] * 3:
 								self.majority = "attack"
-							else:
+							elif self.round["retreat"] > self.round['attack'] * 3:
 								self.majority = "retreat"
+							else:
+								self.majority = "undefined"
 							self.send(self.round['primary'], "DCSN", {"majority":self.majority, "sender": self.get_address()})
 							self.round = None
 					else:
