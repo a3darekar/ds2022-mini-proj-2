@@ -24,7 +24,7 @@ class General:
 		return f"G{self.name}, {self.status}, majority={self.majority}, state={self.state}"
 
 	def get_state(self):
-		return f"G{self.name}, {self.status}, state={self.state}, {self.round}"
+		return f"G{self.name}, {self.status}, state={self.state}"
 
 	def set_state(self, state):
 		if state.upper() == "FAULTY":
@@ -158,18 +158,17 @@ class General:
 						if self.pending_majority():
 							self.save_vote(payload)
 						if self.round['pending_votes'] == 0:
-							if self.verbose:
-								print(self.name, self.round, self.round["attack"] > self.round['retreat'] * 3, self.round["retreat"] > self.round['attack'] * 3)
-							if self.round["attack"] > self.round['retreat'] * 3:
+							if self.round["attack"] > self.round['retreat']:
 								self.majority = "attack"
-							elif self.round["retreat"] > self.round['attack'] * 3:
+							elif self.round["retreat"] > self.round['attack']:
 								self.majority = "retreat"
 							else:
 								self.majority = "undefined"
 							self.send(self.round['primary'], "DCSN", {"majority":self.majority, "sender": self.get_address()})
 							self.round = None
 					else:
-						print("ROUND NOT INITIALIZED")
+						if self.verbose:
+							print("ROUND NOT INITIALIZED")
 				elif task == "DCSN":
 					self.decisions.append((payload["sender"], payload["majority"]))
 				else:
