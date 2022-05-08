@@ -57,7 +57,7 @@ class Coordinator(rpyc.Service):
  		# TODO: when K=0, what should I do? is there a minimum number of members still? Or just 3 is enough (to have majority)
 		required_nodes = 3 * (len(faulty_nodes)) + 1
 		collective_decision = score.most_common(1)[0][0]
- 		print(f"scores: {score.most_common()}, collective_decision: {collective_decision}")
+		print(f"scores: {score.most_common()}, collective_decision: {collective_decision}")
 
 		if required_nodes > total_nodes or collective_decision == "undefined":
 			print(f"Execute order: cannot be determined - not enough generals in the system! {len(faulty_nodes)} faulty node(s) in the system - {min_score} out of {total_nodes} quorum not consistent\n")
