@@ -4,6 +4,7 @@ import rpyc
 import threading
 from rpyc.utils.server import ThreadedServer
 from generals import General
+from collections import Counter
 
 generals, port_prefix = [], 4000
 
@@ -40,6 +41,30 @@ class Coordinator(rpyc.Service):
 	def exposed_initialize_generals(self, generals_count):
 		return self.add_generals(generals_count)
 
+	def execute_order(self, quorum, decisions):
+		"""
+		Execute order based on collective decision		
+		"""
+		# K members can fail assuming arbitrary failures.
+		# we need at least 3K + 1 members to reach consensus
+		total_nodes = len(generals)
+		faulty_nodes = [general for general in generals if general.state == "F"]
+		score = Counter([order[1] for order in decisions])		
+		# TODO: when K=0, what should I do? is there a minimum number of members still? Or just 3 is enough (to have majority)
+		min_score = (total_nodes // 2) + 1
+		required_nodes = 3 * (len(faulty_nodes)) + 1
+		collective_decision = score.most_common(1)[0][0]
+		print(f"scores: {score}, collective_decision: {collective_decision}")
+		
+		if required_nodes > total_nodes or collective_decision == "undefined":
+			print(f"Execute order: cannot be determined - not enough generals in the system! {len(faulty_nodes)} faulty node(s) in the system - {min_score} out of {total_nodes} quorum not consistent\n")
+			return
+		
+		if faulty_nodes:
+			print(f"Execute order: {collective_decision}! {len(faulty_nodes)} faulty nodes in the system - {min_score} out of {total_nodes} quorum suggest {collective_decision}\n")
+		else:
+			print(f"Execute order: {collective_decision}! Non-faulty nodes in the system - {min_score} out of {total_nodes} quorum suggest {collective_decision}\n")
+		return
 
 	def exposed_remote_command(self, command_args):
 		remote_command = command_args[0]
@@ -52,6 +77,7 @@ class Coordinator(rpyc.Service):
 			print("Exiting program")
 			exit_program()
 			sys.exit(0)
+
 
 		# handle exit
 		elif remote_command == "actual-order":
@@ -83,11 +109,14 @@ class Coordinator(rpyc.Service):
 
 				## Print majority from each genral and then report final quorum decision. 
 				time.sleep(1)
-				for general in generals:
-					print(general)
 
 				if verbose:
 					print("Majorities observed:", primary_general.decisions)
+
+				for general in generals:
+					print(general)
+					general.round = None
+				self.execute_order(quorum, primary_general.decisions)
 				primary_general.decisions = []
 				# sleep call just so all communication is carried out and outcome is reported back before allowing next command to be given
 			else:
