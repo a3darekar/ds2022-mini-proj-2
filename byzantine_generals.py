@@ -15,7 +15,10 @@ else:
 
 
 class Coordinator(rpyc.Service):
-	"""Coordinator Service to facilitate interaction between driver code and the generals (Process nodes)"""
+	"""
+		Coordinator Service to facilitate interaction between driver code and the generals (Process nodes)
+		Each command is sent through Remore calls using RPyC and the coordinator will act accordingly.
+	"""
 	def on_connect(self, conn):
 		self.next_id = 0
 		if verbose:
@@ -41,21 +44,21 @@ class Coordinator(rpyc.Service):
 	def exposed_initialize_generals(self, generals_count):
 		return self.add_generals(generals_count)
 
-	def execute_order(self, quorum, decisions):
+	def execute_order(self, decisions):
 		"""
-		Execute order based on collective decision		
+		Execute order based on collective decision	
 		"""
 		# K members can fail assuming arbitrary failures.
 		# we need at least 3K + 1 members to reach consensus
 		total_nodes = len(generals)
 		faulty_nodes = [general for general in generals if general.state == "F"]
-		score = Counter([order[1] for order in decisions])		
-		# TODO: when K=0, what should I do? is there a minimum number of members still? Or just 3 is enough (to have majority)
+		score = Counter([order[1] for order in decisions])
 		min_score = (total_nodes // 2) + 1
+ 		# TODO: when K=0, what should I do? is there a minimum number of members still? Or just 3 is enough (to have majority)
 		required_nodes = 3 * (len(faulty_nodes)) + 1
 		collective_decision = score.most_common(1)[0][0]
-		print(f"scores: {score}, collective_decision: {collective_decision}")
-		
+ 		print(f"scores: {score.most_common()}, collective_decision: {collective_decision}")
+
 		if required_nodes > total_nodes or collective_decision == "undefined":
 			print(f"Execute order: cannot be determined - not enough generals in the system! {len(faulty_nodes)} faulty node(s) in the system - {min_score} out of {total_nodes} quorum not consistent\n")
 			return
@@ -68,8 +71,8 @@ class Coordinator(rpyc.Service):
 
 	def exposed_remote_command(self, command_args):
 		remote_command = command_args[0]
-		print("\nReceived command: \t ", remote_command)
-		if len(command_args) > 3:
+ 		print(f"\nReceived command: \t {' '.join(command_args)}")
+ 		if len(command_args) > 3:
 			print("Too many arguments", command_args)
 
 		# handle exit
@@ -91,11 +94,13 @@ class Coordinator(rpyc.Service):
 				for general in generals:
 					if general.status == "primary":
 						primary_general = general
-					quorum.append(general.get_address())
+					else:
+						quorum.append(general.get_address())
 				# Elect Primary if not present.
 				if not primary_general:
 					generals[0].status = "primary"
 					primary_general = generals[0]
+					quorum,remove(primary_general)
 
 				if verbose:
 					print("quorum participants: ", quorum)
@@ -116,7 +121,7 @@ class Coordinator(rpyc.Service):
 				for general in generals:
 					print(general)
 					general.round = None
-				self.execute_order(quorum, primary_general.decisions)
+				self.execute_order(primary_general.decisions)
 				primary_general.decisions = []
 				# sleep call just so all communication is carried out and outcome is reported back before allowing next command to be given
 			else:
@@ -128,9 +133,12 @@ class Coordinator(rpyc.Service):
 				try:
 					if command_args[1].isdigit() and (command_args[2].upper() == "NON-FAULTY" or command_args[2].upper() == "FAULTY"):
 						input_general, state = int(command_args[1]), command_args[2].upper()
-						for general in generals:
-							if general.name == input_general:
-								general.set_state(state)
+						update_general = [general for general in generals if general.name == input_general]
+						if update_general:
+							update_general[0].set_state(state)
+						else:
+							print(f"General {input_general} does not exist. Please inform a valid general ID.\n")
+							return None
 					else:
 						print("USAGE: g-state <general_id> [FAULTY|NON-FAULTY]")
 				except Exception as e:
@@ -170,6 +178,10 @@ class Coordinator(rpyc.Service):
 							if general_to_remove.status == "primary":
 								generals[0].status = "primary"
 								primary_general = generals[0]
+								print(f"Primary general has been removed, new elected primary is {generals[0].name}.")
+						else:
+							print(f"General {input_general} not found. Invalid general ID.\n")
+							return None
 						for general in generals:
 							print(general.get_state())
 					else:
@@ -202,12 +214,6 @@ if __name__ == '__main__':
 		# Launching the RPC server in a separate daemon thread (killed on exit)
 		coordinator_thread = threading.Thread(target=run_process_service, args=(coordinator,), daemon=True)
 		coordinator_thread.start()
-
-		# run_process_service(coordinator)
-#		while True:
-			# Temporary workaround to give each connection time to communicate and keep connection alive
-#			for general in generals:
-#				print(general.listen())
 
 		if len(sys.argv) > 1:
 			if int(sys.argv[1]) > 0:

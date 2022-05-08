@@ -1,4 +1,3 @@
-import os
 import random
 import _thread
 import socket
@@ -8,7 +7,7 @@ from messenger import Messenger
 class General:
 	def __init__(self, ip, port, name, state, status='secondary', verbose=False):
 		"""
-			Genral class init.
+			General class init.
 				attr: 
 				ip, port : listener socket for incomming communication
 				name: Unique identifier (integer)
@@ -97,8 +96,6 @@ class General:
 			Utility to broadcast message to list of receivers
 		"""
 		myid = self.get_address()
-		# if self.verbose:
-		# 	print(f"{myid} => Broadcasting message: {intent} {payload}")
 		for dest_id in dest_id_list:
 			if dest_id != myid:
 				self.send(dest_id, intent, payload)
@@ -132,8 +129,6 @@ class General:
 				if dest_id != myid:
 					payload = {"sender": self.get_address(), "vote": self.get_vote()}
 					self.send(dest_id, "VOTE", payload)
-			# if self.verbose:
-			# 	print(self.round, self)
 		except Exception as e:
 			print(f"{self.name} {e}")
 
@@ -145,7 +140,8 @@ class General:
 		self.init_round(self.get_address(), quorum)
 		message = {"primary": self.get_address(), "order": order, "quorum": quorum}
 		self.broadcast(quorum, "ORDR", message)
-		self.cast_vote(self.get_address(), quorum)
+		self.majority = self.get_vote()
+		# self.cast_vote(self.get_address(), quorum)
 
 
 	def pending_majority(self):
@@ -193,7 +189,7 @@ class General:
 					Accept order from primary and vote in the quorum
 				b. Intent: Vote (passed as VOTE)
 					Register the vote in data structure and await quorum decision stage.
-					After recieving all votes, decide majority and inform the final decision to the primary genral.
+					After recieving all votes, decide majority and inform the final decision to the primary general.
 		"""
 		while True:
 			response = self.listen()
